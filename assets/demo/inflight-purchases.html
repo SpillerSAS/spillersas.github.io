@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>In-Flight Social Influence — Peer Purchases</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #e8ecf4; color: #1e293b; }
+  .container { max-width: 960px; margin: 0 auto; padding: 20px; }
+  h1 { font-size: 20px; margin-bottom: 2px; }
+  .cite { font-size: 11px; color: #94a3b8; font-style: italic; margin-bottom: 14px; }
+  .subtitle { font-size: 13px; color: #555; margin-bottom: 16px; line-height: 1.5; }
+
+  /* Layout */
+  .main-layout { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .cabin-side { flex: 0 0 auto; }
+  .panel-side { flex: 1; min-width: 280px; }
+
+  /* Cabin */
+  .cabin {
+    background: linear-gradient(180deg, #e2e8f0, #f1f5f9);
+    border: 2px solid #cbd5e1; border-radius: 14px; padding: 14px 16px;
+    position: relative;
+  }
+  .cabin::before {
+    content: '✈️ FORWARD →'; position: absolute; top: -20px; left: 10px;
+    font-size: 10px; color: #94a3b8; font-weight: 600; letter-spacing: 1px;
+  }
+  .seat-letters { display: flex; gap: 4px; padding-left: 30px; margin-bottom: 4px; }
+  .seat-letter { width: 44px; text-align: center; font-size: 10px; color: #64748b; font-weight: 700; }
+  .seat-letters .aisle-gap { width: 22px; }
+  .seat-grid { display: flex; flex-direction: column; gap: 4px; }
+  .seat-row { display: flex; gap: 4px; align-items: center; }
+  .row-num { width: 26px; text-align: right; font-size: 11px; color: #94a3b8; font-weight: 600; padding-right: 4px; }
+  .aisle { width: 22px; display: flex; align-items: center; justify-content: center; }
+  .aisle-line { width: 2px; height: 28px; background: #d1d5db; border-radius: 1px; }
+
+  .seat {
+    width: 44px; height: 36px; border-radius: 6px; border: 2px solid #cbd5e1;
+    background: #f8fafc; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; cursor: pointer; transition: all 0.2s; position: relative;
+    user-select: none;
+  }
+  .seat:hover { border-color: #94a3b8; background: #f0f0f0; }
+  .seat.you {
+    border-color: #7c3aed; background: #ede9fe; cursor: default;
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.2);
+  }
+  .seat.bought { background: #dcfce7; border-color: #4ade80; }
+  .seat.bought .bag { position: absolute; top: -8px; right: -6px; font-size: 12px; }
+  .seat.lateral { box-shadow: 0 0 0 3px rgba(234,179,8,0.4); }
+  .seat.empty-seat { background: #f1f5f9; border-color: #e2e8f0; }
+
+  /* Probability display */
+  .prob-display {
+    background: #fff; border: 2px solid #e2e8f0; border-radius: 12px;
+    padding: 16px; margin-bottom: 14px; text-align: center;
+  }
+  .prob-label { font-size: 12px; color: #64748b; margin-bottom: 6px; }
+  .prob-value { font-size: 48px; font-weight: 900; transition: all 0.4s; }
+  .prob-value.base { color: #94a3b8; }
+  .prob-value.low { color: #7c3aed; }
+  .prob-value.mid { color: #d97706; }
+  .prob-value.high { color: #dc2626; }
+  .prob-bar-bg { height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+  .prob-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s, background 0.3s; }
+  .prob-sub { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+
+  /* Influence log */
+  .influence-log {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 12px; max-height: 200px; overflow-y: auto; margin-bottom: 14px;
+  }
+  .log-title { font-size: 12px; font-weight: 700; color: #64748b; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .log-entry {
+    font-size: 12px; padding: 4px 8px; border-radius: 4px; margin-bottom: 3px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .log-entry.strong { background: #dcfce7; color: #166534; }
+  .log-entry.medium { background: #fef9c3; color: #854d0e; }
+  .log-entry.weak { background: #f1f5f9; color: #64748b; }
+  .log-entry .boost { font-weight: 800; }
+  .log-empty { font-size: 12px; color: #94a3b8; font-style: italic; }
+
+  /* Controls */
+  .flight-controls { display: flex; gap: 8px; flex-wrap: wrap; }
+  .flight-controls button {
+    padding: 8px 14px; font-size: 12px; border-radius: 6px; cursor: pointer;
+    border: 1px solid #cbd5e1; background: #fff; color: #334155; font-weight: 500;
+    transition: all 0.15s;
+  }
+  .flight-controls button:hover { filter: brightness(0.94); }
+  .flight-controls button.primary { background: #7c3aed; color: #fff; border-color: #7c3aed; }
+
+  /* Insight */
+  .insight {
+    margin-top: 14px; padding: 12px 14px; border-radius: 8px;
+    font-size: 13px; line-height: 1.5; transition: all 0.3s;
+    background: #faf5ff; border: 1px solid #ddd6fe; color: #5b21b6;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>✈️ Social Influence in the In-Flight Marketplace</h1>
+  <div class="cite">Gardete (2015). "Social Effects in the In-Flight Marketplace." <em>Journal of Marketing Research</em>, 52(3), 360–374.</div>
+  <p class="subtitle">You're in seat <strong style="color:#7c3aed;">12B</strong>. Click passengers to have them make a purchase. Watch how your purchase probability changes based on <em>who</em> buys and <em>where they sit</em>.</p>
+
+  <div class="main-layout">
+    <div class="cabin-side">
+      <div class="cabin">
+        <div class="seat-letters">
+          <div class="seat-letter">A</div><div class="seat-letter">B</div><div class="seat-letter">C</div>
+          <div class="aisle-gap"></div>
+          <div class="seat-letter">D</div><div class="seat-letter">E</div><div class="seat-letter">F</div>
+        </div>
+        <div class="seat-grid" id="seatGrid"></div>
+      </div>
+    </div>
+
+    <div class="panel-side">
+      <div class="prob-display">
+        <div class="prob-label">Your purchase probability (seat 12B)</div>
+        <div class="prob-value base" id="probValue">15%</div>
+        <div class="prob-bar-bg">
+          <div class="prob-bar-fill" id="probBar" style="width:15%; background:#94a3b8;"></div>
+        </div>
+        <div class="prob-sub" id="probSub">Baseline — no purchases observed</div>
+      </div>
+
+      <div class="influence-log" id="logBox">
+        <div class="log-title">Influence Breakdown</div>
+        <div class="log-empty" id="logEmpty">Click passengers to see influence effects.</div>
+        <div id="logEntries"></div>
+      </div>
+
+      <div class="flight-controls">
+        <button onclick="flightReset()">Reset</button>
+        <button class="primary" onclick="autoDemo()">▶ Auto Demo</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="insight" id="insight" style="display:none;"></div>
+</div>
+
+<script>
+const ROWS = [9, 10, 11, 12, 13, 14, 15];
+const COLS = ['A','B','C','D','E','F'];
+const YOU = { row: 12, col: 'B' };
+const BASELINE = 15;
+let buyers = new Set();
+
+function seatId(r, c) { return r + c; }
+
+function getInfluence(bRow, bCol) {
+  const rd = Math.abs(bRow - YOU.row);
+  const yi = COLS.indexOf(YOU.col);
+  const bi = COLS.indexOf(bCol);
+  const cd = Math.abs(yi - bi);
+  // Across the aisle?
+  const youSide = yi <= 2 ? 'L' : 'R';
+  const buySide = bi <= 2 ? 'L' : 'R';
+  const crossAisle = youSide !== buySide;
+  // Same row, immediately adjacent (lateral seatmate) — dominant effect
+  if (rd === 0 && cd === 1 && !crossAisle) return { boost: 30, strength: 'strong', label: 'Lateral seatmate' };
+  // Same row, across aisle (very weak — can't easily observe)
+  if (rd === 0 && crossAisle) return { boost: 1, strength: 'weak', label: 'Across aisle' };
+  // Same row, 2 seats away same side
+  if (rd === 0 && cd === 2) return { boost: 2, strength: 'weak', label: 'Same row, window seat' };
+  // Row ahead or behind, same column
+  if (rd === 1 && cd === 0) return { boost: 2, strength: 'weak', label: 'Row ahead/behind' };
+  // Diagonal
+  if (rd === 1 && cd === 1 && !crossAisle) return { boost: 1, strength: 'weak', label: 'Diagonal' };
+  // Everything else
+  if (rd <= 2 && cd <= 3) return { boost: 1, strength: 'weak', label: 'Nearby' };
+  return { boost: 0, strength: 'none', label: 'Too far' };
+}
+
+function computeProb() {
+  let total = 0;
+  buyers.forEach(id => {
+    const r = parseInt(id.slice(0,-1)), c = id.slice(-1);
+    total += getInfluence(r, c).boost;
+  });
+  return Math.min(BASELINE + total, 95);
+}
+
+function renderCabin() {
+  const grid = document.getElementById('seatGrid');
+  grid.innerHTML = '';
+  ROWS.forEach(row => {
+    const rd = document.createElement('div');
+    rd.className = 'seat-row';
+    rd.innerHTML = `<div class="row-num">${row}</div>`;
+    COLS.forEach((col, ci) => {
+      if (ci === 3) {
+        const a = document.createElement('div');
+        a.className = 'aisle';
+        a.innerHTML = '<div class="aisle-line"></div>';
+        rd.appendChild(a);
+      }
+      const id = seatId(row, col);
+      const isYou = (row === YOU.row && col === YOU.col);
+      const bought = buyers.has(id);
+      const inf = getInfluence(row, col);
+
+      const s = document.createElement('div');
+      let cls = 'seat';
+      if (isYou) cls += ' you';
+      else if (bought) cls += ' bought';
+      // Highlight lateral seats
+      if (!isYou && inf.boost >= 25) cls += ' lateral';
+
+      s.className = cls;
+      if (isYou) s.innerHTML = '👤';
+      else if (bought) s.innerHTML = `<span class="bag">🛍️</span>`;
+      else s.innerHTML = '';
+
+      s.title = isYou ? 'You (12B)' : `${id} — ${inf.label}`;
+      if (!isYou) s.onclick = () => toggleBuyer(id);
+      rd.appendChild(s);
+    });
+    grid.appendChild(rd);
+  });
+}
+
+function toggleBuyer(id) {
+  if (buyers.has(id)) buyers.delete(id);
+  else buyers.add(id);
+  renderCabin();
+  updateProb();
+}
+
+function updateProb() {
+  const prob = computeProb();
+  const val = document.getElementById('probValue');
+  const bar = document.getElementById('probBar');
+  const sub = document.getElementById('probSub');
+
+  val.textContent = prob + '%';
+  bar.style.width = prob + '%';
+
+  val.className = 'prob-value';
+  if (prob <= BASELINE) { val.classList.add('base'); bar.style.background = '#94a3b8'; }
+  else if (prob < 35) { val.classList.add('low'); bar.style.background = '#7c3aed'; }
+  else if (prob < 55) { val.classList.add('mid'); bar.style.background = '#d97706'; }
+  else { val.classList.add('high'); bar.style.background = '#dc2626'; }
+
+  sub.textContent = buyers.size === 0
+    ? 'Baseline — no purchases observed'
+    : `After observing ${buyers.size} purchase${buyers.size>1?'s':''}`;
+
+  // Log
+  const entries = document.getElementById('logEntries');
+  const empty = document.getElementById('logEmpty');
+  entries.innerHTML = '';
+  if (buyers.size === 0) { empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  const sorted = [];
+  buyers.forEach(id => {
+    const r = parseInt(id.slice(0,-1)), c = id.slice(-1);
+    sorted.push({ id, ...getInfluence(r, c) });
+  });
+  sorted.sort((a,b) => b.boost - a.boost);
+  sorted.forEach(s => {
+    const e = document.createElement('div');
+    e.className = 'log-entry ' + s.strength;
+    e.innerHTML = `<span>Seat ${s.id} — ${s.label}</span><span class="boost">+${s.boost}%</span>`;
+    entries.appendChild(e);
+  });
+
+}
+
+async function autoDemo() {
+  flightReset();
+  await sleep(400);
+  // Far away — barely moves the needle
+  toggleBuyer('10F'); await sleep(1000);
+  toggleBuyer('14D'); await sleep(1000);
+  // Row ahead — still tiny
+  toggleBuyer('11B'); await sleep(1000);
+  // Now lateral seatmates — big jump
+  toggleBuyer('12A'); await sleep(1200);
+  toggleBuyer('12C');
+}
+
+function flightReset() {
+  buyers.clear();
+  renderCabin();
+  updateProb();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Init
+renderCabin();
+updateProb();
+</script>
+</body>
+</html>

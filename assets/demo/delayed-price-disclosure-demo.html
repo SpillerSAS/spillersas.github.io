@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Delayed Price Disclosure Demo — Consumer Behavior</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f1f5f9; color: #1e293b; }
+  .container { max-width: 980px; margin: 0 auto; padding: 24px; }
+  h1 { font-size: 22px; margin-bottom: 2px; }
+  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 24px; line-height: 1.5; }
+
+  .tabs { display: flex; gap: 0; }
+  .tab {
+    padding: 12px 22px; font-size: 14px; font-weight: 600; cursor: pointer;
+    border: 2px solid #e2e8f0; border-bottom: none; border-radius: 10px 10px 0 0;
+    background: #e2e8f0; color: #64748b; transition: all 0.2s;
+  }
+  .tab.active { background: #fff; color: #1e293b; border-color: #cbd5e1; }
+  .tab:hover:not(.active) { background: #f0f0f0; }
+  .tab-content {
+    display: none; background: #fff; border: 2px solid #cbd5e1;
+    border-radius: 0 12px 12px 12px; padding: 28px; min-height: 460px;
+  }
+  .tab-content.active { display: block; }
+  .paper-cite { font-size: 12px; color: #94a3b8; margin-bottom: 18px; font-style: italic; }
+
+  .section-title { font-size: 15px; font-weight: 700; margin: 20px 0 8px; color: #334155; }
+  .section-title:first-of-type { margin-top: 0; }
+  .insight-box { padding: 12px 14px; border-radius: 8px; font-size: 13px; line-height: 1.55; }
+  .insight-blue { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+  .insight-green { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+  .insight-red { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; }
+
+  .takeaway {
+    margin-top: 20px; padding: 16px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;
+  }
+  .takeaway h4 { font-size: 14px; margin-bottom: 8px; color: #166534; }
+  .takeaway p { font-size: 13px; line-height: 1.6; color: #15803d; }
+
+  /* ─── TAB 1: Experience It ─── */
+  .store-picker { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+  .store-card {
+    flex: 1; min-width: 200px; padding: 16px; border: 2px solid #e2e8f0; border-radius: 10px;
+    cursor: pointer; text-align: center; transition: all 0.2s;
+  }
+  .store-card:hover { border-color: #94a3b8; }
+  .store-card.selected { border-color: #7c3aed; background: #f5f3ff; }
+  .store-card .store-icon { font-size: 32px; margin-bottom: 4px; }
+  .store-card .store-name { font-size: 15px; font-weight: 600; }
+  .store-card .store-desc { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+
+  .journey-container { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+  .journey-left { flex: 1.2; min-width: 300px; }
+  .journey-right { flex: 0.8; min-width: 260px; }
+
+  .product-card {
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;
+    padding: 20px; text-align: center; position: relative; overflow: hidden;
+  }
+  .product-img { font-size: 64px; margin-bottom: 8px; }
+  .product-name { font-size: 16px; font-weight: 700; }
+  .product-brand { font-size: 12px; color: #94a3b8; margin-bottom: 8px; }
+  .product-desc { font-size: 13px; color: #64748b; line-height: 1.5; margin-bottom: 12px; }
+
+  .price-tag {
+    font-size: 28px; font-weight: 800; padding: 8px 0; transition: all 0.4s;
+    min-height: 50px; display: flex; align-items: center; justify-content: center;
+  }
+  .price-hidden { color: #cbd5e1; font-size: 16px; font-weight: 500; }
+  .price-revealed { color: #1e293b; }
+  .price-revealed.positive { color: #059669; }
+  .price-revealed.negative { color: #dc2626; }
+
+  .journey-btn {
+    display: block; width: 100%; padding: 12px; font-size: 14px; font-weight: 600;
+    border: none; border-radius: 8px; cursor: pointer; margin-top: 10px;
+    color: #fff; transition: all 0.15s;
+  }
+  .journey-btn:hover { filter: brightness(0.93); }
+  .journey-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .journey-btn.purple { background: #7c3aed; }
+  .journey-btn.gray { background: #64748b; }
+
+  /* Reference price gauge */
+  .gauge-container { margin: 12px 0 8px; }
+  .gauge-label { font-size: 12px; color: #64748b; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .gauge-track {
+    height: 22px; background: linear-gradient(to right, #22c55e, #fbbf24, #ef4444);
+    border-radius: 11px; position: relative; overflow: visible;
+  }
+  /* Markers */
+  .gauge-dot {
+    position: absolute; top: 50%; width: 14px; height: 14px; border-radius: 50%;
+    transform: translate(-50%, -50%); border: 2.5px solid #fff;
+    transition: left 0.6s ease; z-index: 3;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+  }
+  .gauge-dot.baseline { background: #94a3b8; display: none; }
+  .gauge-dot.context { background: #f59e0b; display: none; }
+  .gauge-dot.drift { background: #1e293b; display: none; }
+  .gauge-dot.actual { background: #7c3aed; display: none; }
+
+  /* Connector line between dots */
+  .gauge-connector {
+    position: absolute; top: 50%; height: 3px; transform: translateY(-50%);
+    transition: left 0.6s ease, width 0.6s ease; z-index: 2; border-radius: 2px;
+    display: none;
+  }
+
+  /* Labels row beneath gauge */
+  .gauge-labels-row {
+    position: relative; height: 72px; margin-top: 4px; overflow: visible;
+  }
+  .gauge-tag {
+    position: absolute; transform: translateX(-50%);
+    transition: left 0.6s ease, opacity 0.4s ease; opacity: 0;
+    font-weight: 700; white-space: nowrap; text-align: center; line-height: 1.3;
+    pointer-events: none;
+  }
+  .gauge-tag .tag-line {
+    width: 1px; margin: 0 auto 2px; background: currentColor; opacity: 0.4;
+  }
+  .gauge-tag.baseline { color: #64748b; font-size: 12px; top: 0; }
+  .gauge-tag.baseline .tag-line { height: 10px; }
+  .gauge-tag.context { color: #b45309; font-size: 12px; top: 0; }
+  .gauge-tag.context .tag-line { height: 10px; }
+  .gauge-tag.drift { color: #1e293b; font-size: 13px; top: 28px; }
+  .gauge-tag.drift .tag-line { height: 10px; }
+  .gauge-tag.actual { color: #7c3aed; font-size: 13px; top: 28px; }
+  .gauge-tag.actual .tag-line { height: 10px; }
+  .gauge-tag .tag-label { display: block; font-size: 10px; font-weight: 600; opacity: 0.7; }
+  .gauge-tag .tag-value { display: block; font-size: 14px; font-weight: 800; }
+
+  /* Steps timeline */
+  .steps { display: flex; flex-direction: column; gap: 5px; }
+  .step {
+    display: flex; gap: 10px; align-items: flex-start; font-size: 12.5px; line-height: 1.45;
+    padding: 7px 10px; border-radius: 8px; background: #f8fafc; border: 1px solid #e2e8f0;
+    opacity: 0.3; transition: all 0.3s;
+  }
+  .step.active { opacity: 1; border-color: #c4b5fd; background: #faf5ff; }
+  .step.done { opacity: 0.6; border-color: #d1d5db; }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%; background: #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #64748b; flex-shrink: 0;
+  }
+  .step.active .step-num { background: #7c3aed; color: #fff; }
+  .step.done .step-num { background: #a3e635; color: #1e293b; }
+
+  /* ─── TAB 2: Side-by-Side ─── */
+  .comparison { display: flex; gap: 20px; flex-wrap: wrap; }
+  .comp-col { flex: 1; min-width: 260px; }
+  .comp-header {
+    padding: 10px 14px; border-radius: 8px 8px 0 0; font-size: 14px; font-weight: 700;
+    text-align: center; color: #fff;
+  }
+  .comp-body {
+    border: 2px solid #e2e8f0; border-top: none; border-radius: 0 0 8px 8px;
+    padding: 16px; font-size: 13px; line-height: 1.6;
+  }
+  .comp-body .mini-product { text-align: center; font-size: 36px; margin: 4px 0; }
+  .comp-body .arrow { text-align: center; font-size: 16px; color: #94a3b8; margin: 4px 0; }
+  .comp-body .stage {
+    padding: 8px 10px; background: #f8fafc; border-radius: 6px; margin: 5px 0;
+    border-left: 3px solid #d1d5db;
+  }
+  .comp-body .stage.hl-green { border-left-color: #22c55e; background: #f0fdf4; }
+  .comp-body .stage.hl-red { border-left-color: #ef4444; background: #fef2f2; }
+  .comp-body .stage.hl-amber { border-left-color: #f59e0b; background: #fffbeb; }
+  .comp-body .stage.hl-gray { border-left-color: #94a3b8; background: #f8fafc; }
+
+  /* ─── TAB 3: Key Findings ─── */
+  .findings-grid { display: flex; flex-direction: column; gap: 14px; }
+  .finding-card { padding: 16px; border-radius: 10px; border: 1px solid #e2e8f0; }
+  .finding-card h4 { font-size: 14px; margin-bottom: 6px; }
+  .finding-card p { font-size: 13px; line-height: 1.6; color: #475569; }
+  .finding-card .effect { font-size: 20px; font-weight: 800; margin: 6px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Concealing Prices: Delayed Price Disclosure</h1>
+  <p class="subtitle">How <strong>when</strong> consumers see a price shapes purchase decisions through <strong>expectation disconfirmation</strong>.</p>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(0)">🛒 Experience It</div>
+    <div class="tab" onclick="switchTab(1)">🔀 Side-by-Side</div>
+    <div class="tab" onclick="switchTab(2)">📊 Key Findings</div>
+  </div>
+
+  <!-- ════════ TAB 1 ════════ -->
+  <div class="tab-content active" id="tab0">
+    <p class="paper-cite">Based on: Affonso, Shiri, Aparicio, Xu, Wang, Janiszewski &amp; Bertini (2025). "Concealing Prices: How Delayed Price Disclosure Influences Consumer Purchase Decisions." <em>Journal of Consumer Research</em>, ucaf051.</p>
+
+    <p class="section-title">Step 1: Choose a Store Context</p>
+    <div class="store-picker">
+      <div class="store-card selected" id="store-premium" onclick="selectStore('premium')">
+        <div class="store-icon">✨</div>
+        <div class="store-name">Luxe &amp; Co.</div>
+        <div class="store-desc">Premium retailer — you expect high prices</div>
+      </div>
+      <div class="store-card" id="store-value" onclick="selectStore('value')">
+        <div class="store-icon">🏷️</div>
+        <div class="store-name">DealMart</div>
+        <div class="store-desc">Discount store — you expect low prices</div>
+      </div>
+    </div>
+
+    <p class="section-title">Step 2: Walk Through the Shopping Journey</p>
+    <div class="journey-container">
+      <div class="journey-left">
+        <div class="product-card">
+          <div class="product-img">🎧</div>
+          <div class="product-name">Wireless Headphones</div>
+          <div class="product-brand" id="productBrand">Premium noise-cancelling, Italian leather ear cups</div>
+          <div class="product-desc" id="productDesc">Hand-finished design, studio-grade sound, 30-hour battery. Featured in Vogue and Wired.</div>
+          <div class="price-tag" id="priceTag">
+            <span class="price-hidden">Price not yet shown</span>
+          </div>
+          <div class="gauge-container">
+            <div class="gauge-label">
+              <span>$0</span>
+              <span id="gaugeTitle">Your internal reference price</span>
+              <span>$400</span>
+            </div>
+            <div class="gauge-track" id="gaugeTrack">
+              <!-- Connector lines -->
+              <div class="gauge-connector" id="conn1" style="background:#d1d5db;"></div>
+              <div class="gauge-connector" id="conn2" style="background:#1e293b;"></div>
+              <!-- Dots -->
+              <div class="gauge-dot baseline" id="dotBase"></div>
+              <div class="gauge-dot context" id="dotCtx"></div>
+              <div class="gauge-dot drift" id="dotDrift"></div>
+              <div class="gauge-dot actual" id="dotActual"></div>
+            </div>
+            <!-- Labels row beneath gauge -->
+            <div class="gauge-labels-row">
+              <div class="gauge-tag baseline" id="tagBase">
+                <div class="tag-line"></div>
+                <span class="tag-label">(a) Baseline</span>
+                <span class="tag-value" id="tagBaseVal"></span>
+              </div>
+              <div class="gauge-tag context" id="tagCtx">
+                <div class="tag-line"></div>
+                <span class="tag-label">(b) Context</span>
+                <span class="tag-value" id="tagCtxVal"></span>
+              </div>
+              <div class="gauge-tag drift" id="tagDrift">
+                <div class="tag-line"></div>
+                <span class="tag-label">(c) Delay drift</span>
+                <span class="tag-value" id="tagDriftVal"></span>
+              </div>
+              <div class="gauge-tag actual" id="tagActual">
+                <div class="tag-line"></div>
+                <span class="tag-label">Actual price</span>
+                <span class="tag-value" id="tagActualVal"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button class="journey-btn purple" id="nextBtn" onclick="advanceJourney()">Begin Shopping Journey →</button>
+        <button class="journey-btn gray" style="margin-top:6px;" onclick="resetJourney()">Reset</button>
+      </div>
+
+      <div class="journey-right">
+        <div class="steps">
+          <div class="step active" id="step0">
+            <div class="step-num">1</div>
+            <div><strong>Category baseline.</strong> Before entering any store, you have a rough sense of what headphones cost.</div>
+          </div>
+          <div class="step" id="step1">
+            <div class="step-num">2</div>
+            <div><strong>Store context adjusts beliefs.</strong> Entering this store shifts your reference price based on what you expect this retailer to charge.</div>
+          </div>
+          <div class="step" id="step2">
+            <div class="step-num">3</div>
+            <div><strong>Delay amplifies the shift.</strong> Browsing without a price lets your reference drift further in the direction set by the store context.</div>
+          </div>
+          <div class="step" id="step3">
+            <div class="step-num">4</div>
+            <div><strong>Price revealed!</strong> You compare the actual price to your shifted expectation.</div>
+          </div>
+          <div class="step" id="step4">
+            <div class="step-num">5</div>
+            <div><strong>Disconfirmation.</strong> Positive → "great deal!" Negative → "too much."</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="journeyInsight" style="margin-top: 14px; display: none;"></div>
+  </div>
+
+  <!-- ════════ TAB 2 ════════ -->
+  <div class="tab-content" id="tab1">
+    <p class="paper-cite">Affonso et al. (2025). "Concealing Prices." <em>Journal of Consumer Research</em>, ucaf051.</p>
+
+    <p class="section-title">Same Product, Same Price — Opposite Reactions</p>
+    <p style="font-size:13px; color:#475569; line-height:1.6; margin-bottom:16px;">
+      Both columns show the <strong>same headphones at $179</strong>. The three-stage expectation shift shows how store context + delay create opposite outcomes.
+    </p>
+
+    <div class="comparison">
+      <div class="comp-col">
+        <div class="comp-header" style="background:#059669;">✨ Luxe &amp; Co. — Price Delayed</div>
+        <div class="comp-body">
+          <div class="stage hl-gray">
+            <strong>(a) Category baseline</strong><br>
+            "Headphones generally cost… ~$150?"
+          </div>
+          <div class="arrow">↓</div>
+          <div class="stage hl-amber">
+            <strong>(b) Store context adjusts UP</strong><br>
+            "But this is Luxe &amp; Co. — probably more like <strong>$250</strong>"
+          </div>
+          <div class="arrow">↓</div>
+          <div class="mini-product">🎧</div>
+          <div class="stage hl-amber">
+            <strong>(c) Delay drifts reference further UP</strong><br>
+            Leather finish, premium packaging, no price to anchor…<br>
+            Reference drifts to <strong>~$290</strong>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="stage hl-green">
+            <strong>Price revealed: $179</strong><br>
+            "$179?! $111 less than I expected!"<br>
+            <strong style="color:#059669;">✅ Positive disconfirmation → BUY</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="comp-col">
+        <div class="comp-header" style="background:#dc2626;">🏷️ DealMart — Price Delayed</div>
+        <div class="comp-body">
+          <div class="stage hl-gray">
+            <strong>(a) Category baseline</strong><br>
+            "Headphones generally cost… ~$150?"
+          </div>
+          <div class="arrow">↓</div>
+          <div class="stage hl-amber">
+            <strong>(b) Store context adjusts DOWN</strong><br>
+            "But this is DealMart — probably more like <strong>$90</strong>"
+          </div>
+          <div class="arrow">↓</div>
+          <div class="mini-product">🎧</div>
+          <div class="stage hl-amber">
+            <strong>(c) Delay drifts reference further DOWN</strong><br>
+            Browsing without a price at a discount store…<br>
+            Reference drifts to <strong>~$70</strong>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="stage hl-red">
+            <strong>Price revealed: $179</strong><br>
+            "$179 at DealMart?! $109 more than I expected!"<br>
+            <strong style="color:#dc2626;">❌ Negative disconfirmation → WALK AWAY</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <div class="insight-box insight-blue">
+        <strong>The core insight:</strong> Delayed disclosure <em>amplifies</em> the direction set by store context. The delay in step (c) pushes the reference price <strong>further</strong> in whichever direction (b) already pointed. Premium context + delay = expectations drift high, making the real price feel like a bargain. Discount context + delay = expectations drift low, making the real price feel like a rip-off. <strong>Same product, same price — opposite reactions.</strong>
+      </div>
+    </div>
+
+    <div class="takeaway">
+      <h4>Implication for Pricing Strategy</h4>
+      <p>Premium brands benefit from building desire before showing the price (the delay pushes expectations up, creating positive surprise). Value retailers should lead with the price — anchor the low price before the delay pushes expectations even lower.</p>
+    </div>
+  </div>
+
+  <!-- ════════ TAB 3 ════════ -->
+  <div class="tab-content" id="tab2">
+    <p class="paper-cite">Affonso et al. (2025). "Concealing Prices." <em>Journal of Consumer Research</em>, ucaf051.</p>
+
+    <p class="section-title">Empirical Findings</p>
+    <div class="findings-grid">
+      <div class="finding-card" style="background:#fef2f2;">
+        <h4 style="color:#991b1b;">Field Study: Mainstream Online Retailer</h4>
+        <p>In a large-scale field experiment at a mainstream online retailer, delayed price disclosure <strong>decreased</strong> conversion rates:</p>
+        <div class="effect" style="color:#dc2626;">2.61% → 2.31% (~11% relative decline)</div>
+        <p>Why? For a mainstream (non-premium) store, the delay pushed price expectations downward, making the actual price feel disappointing when finally revealed.</p>
+      </div>
+
+      <div class="finding-card" style="background:#f0fdf4;">
+        <h4 style="color:#166534;">The Moderator: Store Positioning</h4>
+        <p>The effect reverses in premium contexts. When consumers expect high prices, the delay pushes reference prices <strong>further upward</strong>, and the actual price creates positive disconfirmation.</p>
+        <div style="display:flex; gap:16px; margin-top:10px; flex-wrap: wrap;">
+          <div style="flex:1; min-width:150px; padding:10px; background:#dcfce7; border-radius:8px; text-align:center;">
+            <div style="font-size:12px; color:#166534;">Premium context</div>
+            <div style="font-size:18px; font-weight:800; color:#059669;">↑ Purchase likelihood</div>
+            <div style="font-size:11px; color:#15803d;">Delay helps</div>
+          </div>
+          <div style="flex:1; min-width:150px; padding:10px; background:#fecaca; border-radius:8px; text-align:center;">
+            <div style="font-size:12px; color:#991b1b;">Value/discount context</div>
+            <div style="font-size:18px; font-weight:800; color:#dc2626;">↓ Purchase likelihood</div>
+            <div style="font-size:11px; color:#991b1b;">Delay hurts</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="finding-card" style="background:#eff6ff;">
+        <h4 style="color:#1e40af;">The Mechanism: Three-Stage Expectation Shift</h4>
+        <p>The driver is reference-price drift that operates in three stages:</p>
+        <div style="margin:10px 0; padding:12px; background:#fff; border-radius:8px; border:1px solid #bfdbfe;">
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap: wrap;">
+            <div style="text-align:center; flex:1; min-width: 90px; padding:6px; background:#f8fafc; border-radius:6px;">
+              <div style="font-size:10px; color:#64748b; font-weight:600;">(a) Baseline</div>
+              <div style="font-size:16px;">🎧→🧠</div>
+              <div style="font-size:9px; color:#94a3b8;">Category reference</div>
+            </div>
+            <div style="font-size:16px; color:#94a3b8;">→</div>
+            <div style="text-align:center; flex:1; min-width: 90px; padding:6px; background:#fffbeb; border-radius:6px;">
+              <div style="font-size:10px; color:#b45309; font-weight:600;">(b) Context shift</div>
+              <div style="font-size:16px;">🏪📈📉</div>
+              <div style="font-size:9px; color:#94a3b8;">Store adjusts belief</div>
+            </div>
+            <div style="font-size:16px; color:#94a3b8;">→</div>
+            <div style="text-align:center; flex:1; min-width: 90px; padding:6px; background:#faf5ff; border-radius:6px;">
+              <div style="font-size:10px; color:#6b21a8; font-weight:600;">(c) Delay drift</div>
+              <div style="font-size:16px;">⏳⬆️⬇️</div>
+              <div style="font-size:9px; color:#94a3b8;">Further amplifies shift</div>
+            </div>
+            <div style="font-size:16px; color:#94a3b8;">→</div>
+            <div style="text-align:center; flex:1; min-width: 90px; padding:6px; background:#f8fafc; border-radius:6px;">
+              <div style="font-size:10px; color:#64748b; font-weight:600;">Disconfirmation</div>
+              <div style="font-size:16px;">💰⚖️</div>
+              <div style="font-size:9px; color:#94a3b8;">Actual vs. shifted ref</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="finding-card" style="background:#faf5ff;">
+        <h4 style="color:#6b21a8;">Managerial Takeaway</h4>
+        <p>"Should we show the price upfront?" is the wrong question. The right question is: <strong>"In which direction will the delay push expectations — and will the reveal be a pleasant surprise or a letdown?"</strong></p>
+        <div style="margin-top:10px; display:flex; gap:12px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px; padding:10px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; font-size:12px; line-height:1.5;">
+            <strong>Delay the price when:</strong> The store, brand, or product signals premium value. The delay lets expectations rise, making the actual price a pleasant surprise.
+          </div>
+          <div style="flex:1; min-width:180px; padding:10px; background:#f5f3ff; border:1px solid #ddd6fe; border-radius:8px; font-size:12px; line-height:1.5;">
+            <strong>Show the price upfront when:</strong> You're positioned on value. Anchor the low price before the delay pushes expectations even lower.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(idx) {
+  document.querySelectorAll('.tab').forEach(function(t,i) { t.classList.toggle('active', i===idx); });
+  document.querySelectorAll('.tab-content').forEach(function(c,i) { c.classList.toggle('active', i===idx); });
+}
+
+var STORES = {
+  premium: {
+    name: 'Luxe & Co.',
+    baselineRef: 150,  // (a) category baseline
+    contextRef: 250,   // (b) store context shifts UP
+    driftRef: 290,     // (c) delay amplifies further UP
+    actualPrice: 179,
+    disconfirmation: 'positive',
+    productBrand: 'Premium noise-cancelling, Italian leather ear cups',
+    productDesc: 'Hand-finished design, studio-grade sound, 30-hour battery. Featured in Vogue and Wired.',
+  },
+  value: {
+    name: 'DealMart',
+    baselineRef: 150,  // (a) same category baseline
+    contextRef: 90,    // (b) store context shifts DOWN
+    driftRef: 70,      // (c) delay amplifies further DOWN
+    actualPrice: 179,
+    disconfirmation: 'negative',
+    productBrand: 'Noise-cancelling headphones, padded ear cups',
+    productDesc: 'Solid sound, 30-hour battery. Good reviews online.',
+  }
+};
+
+var currentStore = 'premium';
+var journeyStep = 0;
+var MAX_GAUGE = 400;
+
+function pct(val) { return (val / MAX_GAUGE) * 100; }
+
+function selectStore(key) {
+  currentStore = key;
+  document.querySelectorAll('.store-card').forEach(function(c) { c.classList.remove('selected'); });
+  document.getElementById('store-' + key).classList.add('selected');
+  resetJourney();
+}
+
+function resetJourney() {
+  journeyStep = 0;
+  var s = STORES[currentStore];
+
+  document.getElementById('productBrand').textContent = s.productBrand;
+  document.getElementById('productDesc').textContent = s.productDesc;
+  document.getElementById('priceTag').innerHTML = '<span class="price-hidden">Price not yet shown</span>';
+
+  // Hide all dots, tags, and connectors
+  ['dotBase','dotCtx','dotDrift','dotActual'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+  ['tagBase','tagCtx','tagDrift','tagActual'].forEach(function(id) {
+    document.getElementById(id).style.opacity = '0';
+  });
+  ['tagBaseVal','tagCtxVal','tagDriftVal','tagActualVal'].forEach(function(id) {
+    document.getElementById(id).textContent = '';
+  });
+  ['conn1','conn2'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+  });
+
+  for (var i = 0; i <= 4; i++) {
+    document.getElementById('step' + i).className = 'step' + (i === 0 ? ' active' : '');
+  }
+
+  document.getElementById('nextBtn').textContent = 'Begin Shopping Journey \u2192';
+  document.getElementById('nextBtn').disabled = false;
+  document.getElementById('journeyInsight').style.display = 'none';
+  document.getElementById('gaugeTitle').textContent = 'Your internal reference price';
+}
+
+function positionConnector(id, leftPct, rightPct) {
+  var c = document.getElementById(id);
+  var lo = Math.min(leftPct, rightPct);
+  var hi = Math.max(leftPct, rightPct);
+  c.style.left = lo + '%';
+  c.style.width = (hi - lo) + '%';
+  c.style.display = 'block';
+}
+
+function advanceJourney() {
+  journeyStep++;
+  var s = STORES[currentStore];
+
+  for (var i = 0; i <= 4; i++) {
+    var el = document.getElementById('step' + i);
+    if (i < journeyStep) el.className = 'step done';
+    else if (i === journeyStep) el.className = 'step active';
+    else el.className = 'step';
+  }
+
+  if (journeyStep === 1) {
+    // (a) Category baseline
+    var db = document.getElementById('dotBase');
+    db.style.display = 'block';
+    db.style.left = pct(s.baselineRef) + '%';
+    var tb = document.getElementById('tagBase');
+    tb.style.left = pct(s.baselineRef) + '%';
+    tb.style.opacity = '1';
+    document.getElementById('tagBaseVal').textContent = '~$' + s.baselineRef;
+    document.getElementById('nextBtn').textContent = 'Enter the Store \u2192';
+  }
+
+  if (journeyStep === 2) {
+    // (b) Store context adjusts
+    var dc = document.getElementById('dotCtx');
+    dc.style.display = 'block';
+    dc.style.left = pct(s.contextRef) + '%';
+    var tc = document.getElementById('tagCtx');
+    tc.style.left = pct(s.contextRef) + '%';
+    tc.style.opacity = '1';
+    document.getElementById('tagCtxVal').textContent = '~$' + s.contextRef;
+    positionConnector('conn1', pct(s.baselineRef), pct(s.contextRef));
+    document.getElementById('nextBtn').textContent = 'Browse Product (No Price) \u2192';
+  }
+
+  if (journeyStep === 3) {
+    // (c) Delay drifts further
+    var dd = document.getElementById('dotDrift');
+    dd.style.display = 'block';
+    dd.style.left = pct(s.driftRef) + '%';
+    var td = document.getElementById('tagDrift');
+    td.style.left = pct(s.driftRef) + '%';
+    td.style.opacity = '1';
+    document.getElementById('tagDriftVal').textContent = '~$' + s.driftRef;
+    positionConnector('conn2', pct(s.contextRef), pct(s.driftRef));
+    document.getElementById('nextBtn').textContent = 'Reveal the Price \u2192';
+  }
+
+  if (journeyStep === 4) {
+    // Price revealed
+    var da = document.getElementById('dotActual');
+    da.style.display = 'block';
+    da.style.left = pct(s.actualPrice) + '%';
+    var ta = document.getElementById('tagActual');
+    ta.style.left = pct(s.actualPrice) + '%';
+    ta.style.opacity = '1';
+    document.getElementById('tagActualVal').textContent = '$' + s.actualPrice;
+
+    var tag = document.getElementById('priceTag');
+    var cls = 'price-revealed';
+    if (s.disconfirmation === 'positive') cls += ' positive';
+    else cls += ' negative';
+    tag.innerHTML = '<span class="' + cls + '">$' + s.actualPrice + '</span>';
+
+    document.getElementById('nextBtn').textContent = 'See Result \u2192';
+  }
+
+  if (journeyStep === 5) {
+    var insight = document.getElementById('journeyInsight');
+    insight.style.display = 'block';
+
+    if (s.disconfirmation === 'positive') {
+      var gap = s.driftRef - s.actualPrice;
+      insight.className = 'insight-box insight-green';
+      insight.innerHTML = '<strong>\u2705 Positive disconfirmation!</strong> Your reference drifted to ~$' + s.driftRef + ' but the price is only $' + s.actualPrice + ' \u2014 <strong>$' + gap + ' less</strong> than expected. The delay amplified your premium expectations, making the actual price feel like a steal. <em>Premium retailers benefit from delaying prices.</em>';
+    } else {
+      var gap = s.actualPrice - s.driftRef;
+      insight.className = 'insight-box insight-red';
+      insight.innerHTML = '<strong>\u274C Negative disconfirmation!</strong> Your reference drifted down to ~$' + s.driftRef + ' but the price is $' + s.actualPrice + ' \u2014 <strong>$' + gap + ' more</strong> than expected. The delay amplified your discount expectations, making the actual price feel outrageous. <em>Discount retailers should show prices upfront.</em>';
+    }
+
+    document.getElementById('nextBtn').textContent = 'Try the Other Store \u21BB';
+  }
+
+  if (journeyStep >= 6) {
+    currentStore = (currentStore === 'premium') ? 'value' : 'premium';
+    document.querySelectorAll('.store-card').forEach(function(c) { c.classList.remove('selected'); });
+    document.getElementById('store-' + currentStore).classList.add('selected');
+    resetJourney();
+  }
+}
+
+resetJourney();
+</script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reinforcement Schedules Demo — Consumer Behavior</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+    padding: 24px;
+  }
+  .container { max-width: 940px; margin: 0 auto; }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  .subtitle { font-size: 14px; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
+
+  /* Controls bar */
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+  .controls button {
+    padding: 8px 16px; font-size: 13px; border-radius: 8px; cursor: pointer; font-weight: 600;
+  }
+  #extinctBtn { border: 2px solid #ef4444; background: #fff; color: #ef4444; }
+  #extinctBtn.active { background: #ef4444; color: #fff; }
+  #resetBtn { border: 1px solid #d1d5db; background: #f9fafb; color: #334155; font-weight: 400; }
+  #theoryBtn { border: 1px solid #d1d5db; background: #f9fafb; color: #334155; font-weight: 400; margin-left: auto; }
+
+  /* Panels */
+  .panels { display: flex; gap: 16px; flex-wrap: wrap; }
+  .panel {
+    flex: 1; min-width: 250px; background: #fff; border-radius: 12px; padding: 20px;
+    display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden;
+    border: 2px solid #e2e8f0;
+  }
+  .panel-header { display: flex; align-items: center; gap: 8px; }
+  .panel-header .icon { font-size: 24px; }
+  .panel-header h3 { font-size: 15px; margin: 0; }
+  .panel-desc { font-size: 13px; color: #555; line-height: 1.4; }
+  .panel-example { font-size: 12px; color: #888; font-style: italic; }
+
+  .stats { display: flex; gap: 16px; font-size: 14px; }
+  .stats span { color: #888; }
+
+  .history { display: flex; gap: 2px; flex-wrap: wrap; min-height: 18px; }
+  .history .dot {
+    width: 10px; height: 18px; border-radius: 3px; background: #e5e7eb;
+    transition: background 0.2s;
+  }
+
+  .panel-actions { display: flex; gap: 8px; margin-top: auto; }
+  .buy-btn {
+    flex: 1; padding: 10px 0; font-size: 14px; font-weight: 600; border: none;
+    border-radius: 8px; color: #fff; cursor: pointer; transition: transform 0.1s;
+  }
+  .buy-btn:active { transform: scale(0.96); }
+  .buy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .reset-panel-btn {
+    padding: 10px 14px; font-size: 13px; border-radius: 8px; cursor: pointer;
+  }
+
+  /* Flash overlay */
+  .flash {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(250,204,21,0.25); border-radius: 12px; pointer-events: none; z-index: 10;
+    animation: fadeOut 0.7s forwards;
+  }
+  .flash span { font-size: 48px; }
+  @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+  /* Continuous */
+  #continuous { border-color: #bfdbfe; }
+  #continuous h3 { color: #2563eb; }
+  #continuous .buy-btn { background: #2563eb; }
+  #continuous .reset-panel-btn { border: 1px solid #bfdbfe; background: #eff6ff; color: #2563eb; }
+
+  /* Fixed Ratio */
+  #fixedRatio { border-color: #a7f3d0; }
+  #fixedRatio h3 { color: #059669; }
+  #fixedRatio .buy-btn { background: #059669; }
+  #fixedRatio .reset-panel-btn { border: 1px solid #a7f3d0; background: #ecfdf5; color: #059669; }
+
+  /* Variable Ratio */
+  #variableRatio { border-color: #fde68a; }
+  #variableRatio h3 { color: #d97706; }
+  #variableRatio .buy-btn { background: #d97706; }
+  #variableRatio .reset-panel-btn { border: 1px solid #fde68a; background: #fffbeb; color: #d97706; }
+
+  /* Theory box */
+  #theoryBox {
+    display: none; margin-top: 20px; padding: 20px; background: #f8fafc;
+    border: 1px solid #e2e8f0; border-radius: 12px; font-size: 13px; line-height: 1.7; color: #334155;
+  }
+  #theoryBox h3 { font-size: 15px; margin-bottom: 10px; }
+  #theoryBox table { width: 100%; border-collapse: collapse; }
+  #theoryBox th { text-align: left; padding: 6px 8px; border-bottom: 2px solid #e2e8f0; }
+  #theoryBox td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; }
+  .sched-c { color: #2563eb; font-weight: 600; }
+  .sched-fr { color: #059669; font-weight: 600; }
+  .sched-vr { color: #d97706; font-weight: 600; }
+  #theoryBox .note { margin-top: 12px; font-style: italic; color: #64748b; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Operant Conditioning: Reinforcement Schedules</h1>
+  <p class="subtitle">Click <strong>Purchase</strong> in each column to experience how different reinforcement schedules feel as a consumer. Watch the pattern bars to see when rewards land.</p>
+
+  <div class="controls">
+    <button id="extinctBtn" onclick="toggleExtinction()">💡 Toggle Extinction</button>
+    <button id="resetBtn" onclick="resetAll()">Reset All</button>
+    <button id="theoryBtn" onclick="toggleTheory()">Show Key Takeaways</button>
+  </div>
+
+  <div class="panels">
+    <!-- Continuous -->
+    <div class="panel" id="continuous">
+      <div class="panel-header"><span class="icon">☕</span><h3>Continuous Reinforcement</h3></div>
+      <p class="panel-desc">Every single response is reinforced.</p>
+      <p class="panel-example">Buy 1, get a free sample — every time.</p>
+      <div class="stats">
+        <div><span>Presses: </span><strong id="c-presses">0</strong></div>
+        <div><span>Rewards: </span><strong id="c-rewards" style="color:#2563eb">0</strong></div>
+      </div>
+      <div class="history" id="c-history"></div>
+      <div class="panel-actions">
+        <button class="buy-btn" id="c-buy" onclick="pressContinuous()">🛒 Purchase</button>
+        <button class="reset-panel-btn" onclick="resetPanel('continuous')">Reset</button>
+      </div>
+    </div>
+
+    <!-- Fixed Ratio -->
+    <div class="panel" id="fixedRatio">
+      <div class="panel-header"><span class="icon">🎯</span><h3>Fixed Ratio (FR-5)</h3></div>
+      <p class="panel-desc">Reinforcement after every 5th response.</p>
+      <p class="panel-example">"Buy 5 coffees, get the 6th free."</p>
+      <div class="stats">
+        <div><span>Presses: </span><strong id="fr-presses">0</strong></div>
+        <div><span>Rewards: </span><strong id="fr-rewards" style="color:#059669">0</strong></div>
+      </div>
+      <div class="history" id="fr-history"></div>
+      <div class="panel-actions">
+        <button class="buy-btn" id="fr-buy" onclick="pressFixed()">🛒 Purchase</button>
+        <button class="reset-panel-btn" onclick="resetPanel('fixedRatio')">Reset</button>
+      </div>
+    </div>
+
+    <!-- Variable Ratio -->
+    <div class="panel" id="variableRatio">
+      <div class="panel-header"><span class="icon">🎰</span><h3>Variable Ratio (avg 5)</h3></div>
+      <p class="panel-desc">Reinforcement after an unpredictable number of responses (averaging 5).</p>
+      <p class="panel-example">Scratch-off loyalty cards, slot machines, loot boxes.</p>
+      <div class="stats">
+        <div><span>Presses: </span><strong id="vr-presses">0</strong></div>
+        <div><span>Rewards: </span><strong id="vr-rewards" style="color:#d97706">0</strong></div>
+      </div>
+      <div class="history" id="vr-history"></div>
+      <div class="panel-actions">
+        <button class="buy-btn" id="vr-buy" onclick="pressVariable()">🛒 Purchase</button>
+        <button class="reset-panel-btn" onclick="resetPanel('variableRatio')">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Theory Box -->
+  <div id="theoryBox">
+    <h3>Key Takeaways for Marketers</h3>
+    <table>
+      <thead><tr><th>Schedule</th><th>Response Rate</th><th>Extinction</th><th>Real-World Use</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="sched-c">Continuous</td>
+          <td>Steady but moderate</td>
+          <td>Very fast — customers notice immediately when rewards stop</td>
+          <td>Free samples, instant cashback, onboarding incentives</td>
+        </tr>
+        <tr>
+          <td class="sched-fr">Fixed Ratio</td>
+          <td>Post-reinforcement pause, then burst</td>
+          <td>Moderate — customers stop once they realize the pattern is broken</td>
+          <td>Punch cards, "Buy 5 get 1 free," frequent-flyer tiers</td>
+        </tr>
+        <tr>
+          <td class="sched-vr">Variable Ratio</td>
+          <td>High and steady — "maybe this time!"</td>
+          <td>Very slow — hardest to extinguish (the gambler's fallacy)</td>
+          <td>Lottery promos, gacha/loot boxes, surprise discount pop-ups</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="note">Try toggling Extinction and keep clicking — notice which schedule makes you want to keep pressing even without rewards. That's the power of variable ratio reinforcement in consumer behavior.</p>
+  </div>
+</div>
+
+<script>
+  const MAX_DOTS = 30;
+  let extinct = false;
+
+  // State
+  const state = {
+    continuous: { presses: 0, rewards: 0, history: [] },
+    fixedRatio: { presses: 0, rewards: 0, history: [], sinceReward: 0 },
+    variableRatio: { presses: 0, rewards: 0, history: [], vrCount: 0, nextVR: randomVR() },
+  };
+
+  const colors = {
+    continuous: "#2563eb",
+    fixedRatio: "#059669",
+    variableRatio: "#d97706",
+  };
+
+  function randomVR() {
+    const opts = [1, 2, 3, 3, 4, 4, 5, 5, 5, 6, 6, 7, 8, 9, 10];
+    return opts[Math.floor(Math.random() * opts.length)];
+  }
+
+  function flash(panelId) {
+    const panel = document.getElementById(panelId);
+    const el = document.createElement("div");
+    el.className = "flash";
+    el.innerHTML = "<span>🎉</span>";
+    panel.appendChild(el);
+    setTimeout(() => el.remove(), 750);
+  }
+
+  function renderHistory(key, prefix) {
+    const container = document.getElementById(prefix + "-history");
+    const dots = state[key].history.slice(-MAX_DOTS);
+    container.innerHTML = dots.map(h =>
+      `<div class="dot" style="background:${h === "reward" ? colors[key] : "#e5e7eb"}" title="${h === "reward" ? "Rewarded" : "No reward"}"></div>`
+    ).join("");
+  }
+
+  function updateUI(key, prefix) {
+    document.getElementById(prefix + "-presses").textContent = state[key].presses;
+    document.getElementById(prefix + "-rewards").textContent = state[key].rewards;
+    renderHistory(key, prefix);
+  }
+
+  function updateButtons() {
+    ["c-buy", "fr-buy", "vr-buy"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (extinct) {
+        btn.textContent = "No reward (Extinct)";
+        btn.disabled = false; // still clickable to show extinction behavior
+      } else {
+        btn.textContent = "🛒 Purchase";
+        btn.disabled = false;
+      }
+    });
+  }
+
+  // --- Press handlers ---
+  function pressContinuous() {
+    const s = state.continuous;
+    s.presses++;
+    if (!extinct) {
+      s.rewards++;
+      s.history.push("reward");
+      flash("continuous");
+    } else {
+      s.history.push("miss");
+    }
+    updateUI("continuous", "c");
+  }
+
+  function pressFixed() {
+    const s = state.fixedRatio;
+    s.presses++;
+    s.sinceReward++;
+    if (!extinct && s.sinceReward >= 5) {
+      s.rewards++;
+      s.sinceReward = 0;
+      s.history.push("reward");
+      flash("fixedRatio");
+    } else {
+      s.history.push("miss");
+    }
+    updateUI("fixedRatio", "fr");
+  }
+
+  function pressVariable() {
+    const s = state.variableRatio;
+    s.presses++;
+    s.vrCount++;
+    if (!extinct && s.vrCount >= s.nextVR) {
+      s.rewards++;
+      s.vrCount = 0;
+      s.nextVR = randomVR();
+      s.history.push("reward");
+      flash("variableRatio");
+    } else {
+      s.history.push("miss");
+    }
+    updateUI("variableRatio", "vr");
+  }
+
+  // --- Controls ---
+  function toggleExtinction() {
+    extinct = !extinct;
+    const btn = document.getElementById("extinctBtn");
+    btn.classList.toggle("active", extinct);
+    btn.textContent = extinct ? "⚡ Extinction ON — rewards stopped" : "💡 Toggle Extinction";
+    updateButtons();
+  }
+
+  function resetPanel(key) {
+    const prefix = key === "continuous" ? "c" : key === "fixedRatio" ? "fr" : "vr";
+    state[key] = { presses: 0, rewards: 0, history: [] };
+    if (key === "fixedRatio") state[key].sinceReward = 0;
+    if (key === "variableRatio") { state[key].vrCount = 0; state[key].nextVR = randomVR(); }
+    updateUI(key, prefix);
+  }
+
+  function resetAll() {
+    resetPanel("continuous");
+    resetPanel("fixedRatio");
+    resetPanel("variableRatio");
+    extinct = false;
+    document.getElementById("extinctBtn").classList.remove("active");
+    document.getElementById("extinctBtn").textContent = "💡 Toggle Extinction";
+    updateButtons();
+  }
+
+  function toggleTheory() {
+    const box = document.getElementById("theoryBox");
+    const btn = document.getElementById("theoryBtn");
+    const showing = box.style.display === "block";
+    box.style.display = showing ? "none" : "block";
+    btn.textContent = showing ? "Show Key Takeaways" : "Hide Key Takeaways";
+  }
+</script>
+</body>
+</html>

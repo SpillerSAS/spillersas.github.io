@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Solar Panel Adoption — Visibility & Peer Influence</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #e8f0e2; color: #1e293b; }
+  .container { max-width: 1120px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin-bottom: 2px; }
+  .cite { font-size: 11px; color: #94a3b8; font-style: italic; margin-bottom: 10px; }
+  .subtitle { font-size: 13px; color: #555; margin-bottom: 12px; line-height: 1.5; }
+
+  .controls { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .controls button {
+    padding: 7px 12px; font-size: 11px; border-radius: 7px; cursor: pointer; font-weight: 600;
+    border: 1px solid #cbd5e1; background: #fff; color: #334155; transition: all 0.15s;
+  }
+  .controls button:hover { filter: brightness(0.94); }
+  .controls button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .controls button.seed-vis { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+  .controls button.seed-hid { background: #9a8c7a; color: #fff; border-color: #9a8c7a; }
+  .controls .spacer { flex: 1; }
+  .round-badge {
+    padding: 4px 10px; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 7px;
+    font-size: 12px; font-weight: 600;
+  }
+
+  .stats-bar { display: flex; gap: 16px; margin-bottom: 10px; flex-wrap: wrap; }
+  .stat { font-size: 12px; }
+  .stat .val { font-weight: 800; font-size: 14px; }
+  .stat .val.vis { color: #2563eb; }
+  .stat .val.hid { color: #78716c; }
+
+  .legend { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; font-size: 11px; color: #555; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-swatch { width: 16px; height: 11px; border-radius: 2px; border: 1px solid #aaa; }
+
+  /* ─── NEIGHBORHOOD ─── */
+  .neighborhood {
+    background: #f5f0e8; border: 2px solid #d6cfc0; border-radius: 12px;
+    padding: 44px 8px; display: flex; align-items: stretch; gap: 0;
+    position: relative; overflow: hidden;
+  }
+
+  /* SVG overlay for road connectors */
+  .road-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 5; overflow: hidden;
+  }
+
+  .south-label {
+    writing-mode: vertical-lr; transform: rotate(180deg);
+    font-size: 13px; font-weight: 800; color: #d97706; letter-spacing: 2px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 5px; flex-shrink: 0;
+    background: linear-gradient(to bottom, rgba(251,191,36,0.06), rgba(251,191,36,0.16), rgba(251,191,36,0.06));
+    border-radius: 6px; margin-right: 4px; text-transform: uppercase;
+  }
+
+  .street-block { display: flex; align-items: stretch; flex-shrink: 0; }
+
+  .backyard-gap {
+    width: 34px; flex-shrink: 0;
+    background: #dde4d2;
+    position: relative;
+  }
+  .backyard-gap::before {
+    content: ''; position: absolute; left: 50%; top: 3%; bottom: 3%;
+    width: 2px; margin-left: -1px;
+    background: repeating-linear-gradient(to bottom, #b8b098 0, #b8b098 6px, transparent 6px, transparent 12px);
+  }
+
+  .house-col {
+    display: flex; flex-direction: column; gap: 5px; justify-content: center;
+    padding: 4px 3px;
+  }
+
+  .road {
+    width: 34px; flex-shrink: 0; background: #9ca3af; border-radius: 3px;
+    position: relative; margin: 0 2px; z-index: 1;
+  }
+  .road::before {
+    content: ''; position: absolute; left: 50%; top: 4%; bottom: 4%;
+    width: 3px; margin-left: -1.5px;
+    background: repeating-linear-gradient(to bottom, #fbbf24 0, #fbbf24 10px, transparent 10px, transparent 20px);
+    border-radius: 2px;
+  }
+
+  .side-lbl {
+    writing-mode: vertical-lr; transform: rotate(180deg);
+    font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 1px; text-transform: uppercase; flex-shrink: 0; color: #a09888;
+  }
+  .side-lbl.vis-lbl { color: #2563eb; }
+
+  /* ─── HOUSE ─── */
+  .house {
+    cursor: pointer; transition: transform 0.1s; position: relative;
+    display: flex; flex-direction: column; align-items: center; width: 54px;
+  }
+  .house:hover { transform: scale(1.08); }
+
+  .roof {
+    width: 54px; height: 20px; position: relative;
+    filter: drop-shadow(0 1px 1px rgba(0,0,0,0.1));
+  }
+  .roof-south, .roof-north {
+    position: absolute; top: 0; left: 0; width: 54px; height: 20px;
+    transition: background 0.3s;
+  }
+  .roof-south { clip-path: polygon(50% 0%, 0% 100%, 50% 100%); background: #8d8478; }
+  .roof-north { clip-path: polygon(50% 0%, 50% 100%, 100% 100%); background: #78716c; }
+  .roof::after {
+    content: ''; position: absolute; top: 0; left: 50%; width: 0; height: 100%;
+    border-left: 1.5px solid rgba(0,0,0,0.2); transform: translateX(-0.75px); z-index: 2;
+  }
+
+  .roof-south.solar-visible {
+    background:
+      repeating-linear-gradient(60deg, rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.12) 1px, transparent 1px, transparent 5px),
+      repeating-linear-gradient(150deg, rgba(0,0,0,0.1) 0px, rgba(0,0,0,0.1) 1px, transparent 1px, transparent 6px),
+      linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%) !important;
+  }
+  .roof-south.solar-hidden {
+    background:
+      repeating-linear-gradient(60deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 5px),
+      repeating-linear-gradient(150deg, rgba(0,0,0,0.05) 0px, rgba(0,0,0,0.05) 1px, transparent 6px),
+      linear-gradient(135deg, #93b4dc 0%, #7c9dbf 100%) !important;
+  }
+
+  .sun-badge {
+    position: absolute; top: -8px; left: 0px; font-size: 10px; z-index: 3;
+    filter: drop-shadow(0 0 2px rgba(250,204,21,0.7)); display: none;
+  }
+  .house.has-visible .sun-badge { display: block; }
+
+  .walls {
+    width: 42px; height: 28px; background: #fef3c7; border: 1.5px solid #d6d3d1;
+    border-radius: 0 0 2px 2px; position: relative; margin-top: -1px;
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .house.adopted .walls { background: #dbeafe; border-color: #93c5fd; }
+  .windows { display: flex; gap: 4px; margin-bottom: 2px; }
+  .win { width: 7px; height: 6px; background: #bae6fd; border: 1px solid #78716c; border-radius: 1px; }
+  .door {
+    width: 9px; height: 12px; background: #a8a29e; border-radius: 2px 2px 0 0;
+    border: 1px solid #78716c; border-bottom: none;
+  }
+  .house.adopted::after {
+    content: ''; position: absolute; inset: -2px; border-radius: 5px;
+    background: rgba(37,99,235,0.05); z-index: -1; pointer-events: none;
+  }
+
+  .insight {
+    margin-top: 12px; padding: 10px 12px; border-radius: 8px;
+    font-size: 13px; line-height: 1.5; min-height: 36px;
+    background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Visibility & Peer Influence in Solar Adoption</h1>
+  <div class="cite">Bollinger, Gillingham, Kirkpatrick & Sexton (2022). <em>Marketing Science</em>, 41(3), 453-476.</div>
+  <p class="subtitle">One connected road snakes through the neighborhood. Everyone installs on the <strong>south-facing slope</strong> (left). Houses to the <strong style="color:#2563eb;">right of the road</strong> have panels visible from the street; houses to the <strong>left</strong> have them hidden. Influence spreads along the road through visibility.</p>
+
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch" style="background: linear-gradient(135deg,#3b82f6,#1d4ed8);"></div> Visible from road</div>
+    <div class="legend-item"><div class="legend-swatch" style="background: linear-gradient(135deg,#93b4dc,#7c9dbf);"></div> Hidden from road</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#78716c;"></div> No panels</div>
+  </div>
+
+  <div class="controls">
+    <button class="primary" onclick="simRound()">&#9654; Simulate Wave</button>
+    <button class="primary" onclick="autoRun()">&#9654;&#9654; Auto 5 Waves</button>
+    <button class="seed-vis" onclick="seedVisible()">+ Visible Install</button>
+    <button class="seed-hid" onclick="seedHidden()">+ Hidden Install</button>
+    <div class="spacer"></div>
+    <button onclick="resetAll()">Reset</button>
+    <div class="round-badge">Wave: <span id="roundNum">0</span></div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">Visible: <span class="val vis" id="visCount">0</span></div>
+    <div class="stat">Hidden: <span class="val hid" id="hidCount">0</span></div>
+    <div class="stat">Adopted: <span class="val" id="totalAdopt">0</span> / <span id="totalHouses">0</span></div>
+  </div>
+
+  <div class="neighborhood" id="hood"></div>
+
+  <div class="insight" id="insight">Seed an install on either side of the road, then <strong>Simulate Wave</strong>.</div>
+</div>
+
+<script>
+var SEGS = 4;
+var N = 8;
+var TOTAL = SEGS * N * 2;
+
+var segs = [];
+for (var s = 0; s < SEGS; s++) {
+  segs.push({ left: new Array(N).fill(false), right: new Array(N).fill(false) });
+}
+var round = 0;
+var autoTimer = null;
+
+// ─── Draw road connectors as SVG overlay ───
+function drawConnectors() {
+  // Remove old overlay
+  var old = document.getElementById('roadOverlay');
+  if (old) old.remove();
+
+  var hood = document.getElementById('hood');
+  var hoodRect = hood.getBoundingClientRect();
+  var roads = hood.querySelectorAll('.road');
+  if (roads.length < 2) return;
+
+  var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'roadOverlay';
+  svg.classList.add('road-overlay');
+  svg.setAttribute('width', hoodRect.width);
+  svg.setAttribute('height', hoodRect.height);
+  svg.style.overflow = 'hidden';
+
+  for (var i = 0; i < roads.length - 1; i++) {
+    var r1 = roads[i].getBoundingClientRect();
+    var r2 = roads[i + 1].getBoundingClientRect();
+
+    // Positions relative to hood
+    var r1cx = r1.left + r1.width / 2 - hoodRect.left;
+    var r2cx = r2.left + r2.width / 2 - hoodRect.left;
+    var roadW = r1.width;
+
+    var y1, y2;
+    if (i % 2 === 0) {
+      // Connect at bottom
+      y1 = r1.bottom - hoodRect.top;
+      y2 = r2.bottom - hoodRect.top;
+    } else {
+      // Connect at top
+      y1 = r1.top - hoodRect.top;
+      y2 = r2.top - hoodRect.top;
+    }
+
+    // Draw a U-shaped connector: down/up from road 1, across, up/down to road 2
+    var bulge = (i % 2 === 0) ? 28 : -28; // how far the bend extends beyond the road ends
+    var midY = y1 + bulge;
+
+    var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d',
+      'M ' + r1cx + ',' + y1 +
+      ' L ' + r1cx + ',' + midY +
+      ' Q ' + r1cx + ',' + (midY + bulge * 0.5) + ' ' + ((r1cx + r2cx) / 2) + ',' + (midY + bulge * 0.5) +
+      ' Q ' + r2cx + ',' + (midY + bulge * 0.5) + ' ' + r2cx + ',' + midY +
+      ' L ' + r2cx + ',' + y2
+    );
+    path.setAttribute('stroke', '#9ca3af');
+    path.setAttribute('stroke-width', roadW);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(path);
+
+    // Yellow center line on the bend
+    var centerLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    centerLine.setAttribute('d', path.getAttribute('d'));
+    centerLine.setAttribute('stroke', '#fbbf24');
+    centerLine.setAttribute('stroke-width', '3');
+    centerLine.setAttribute('fill', 'none');
+    centerLine.setAttribute('stroke-dasharray', '10,10');
+    centerLine.setAttribute('stroke-linejoin', 'round');
+    centerLine.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(centerLine);
+  }
+
+  hood.appendChild(svg);
+}
+
+// ─── Road position for distance calc ───
+function roadPosition(seg, side, idx) {
+  var segStart;
+  if (seg % 2 === 0) {
+    segStart = seg * N;
+    return segStart + idx;
+  } else {
+    segStart = seg * N;
+    return segStart + (N - 1 - idx);
+  }
+}
+
+function adoptionProb(seg, side, idx) {
+  var arr = side === 'left' ? segs[seg].left : segs[seg].right;
+  if (arr[idx]) return 0;
+
+  var myPos = roadPosition(seg, side, idx);
+  var inf = 0;
+
+  for (var os = 0; os < SEGS; os++) {
+    for (var oi = 0; oi < N; oi++) {
+      var otherPos = roadPosition(os, 'right', oi);
+      var d = Math.abs(myPos - otherPos);
+
+      if (segs[os].right[oi]) {
+        inf += 0.055 / (1 + d * 0.35);
+      }
+      if (segs[os].left[oi]) {
+        inf += 0.014 / (1 + d * 0.8);
+      }
+    }
+  }
+
+  return Math.min(inf, 0.35);
+}
+
+// ─── Render ───
+function render() {
+  var hood = document.getElementById('hood');
+  hood.innerHTML = '';
+
+  var southLbl = mkEl('div', 'south-label');
+  southLbl.innerHTML = '\u2600\uFE0F SOUTH';
+  hood.appendChild(southLbl);
+
+  for (var s = 0; s < SEGS; s++) {
+    if (s > 0) {
+      hood.appendChild(mkEl('div', 'backyard-gap'));
+    }
+
+    var block = mkEl('div', 'street-block');
+
+    var hl = mkEl('div', 'side-lbl');
+    hl.textContent = 'hidden';
+    block.appendChild(hl);
+
+    var leftCol = mkEl('div', 'house-col');
+    for (var i = 0; i < N; i++) leftCol.appendChild(makeHouse(s, i, 'left'));
+    block.appendChild(leftCol);
+
+    block.appendChild(mkEl('div', 'road'));
+
+    var rightCol = mkEl('div', 'house-col');
+    for (var i = 0; i < N; i++) rightCol.appendChild(makeHouse(s, i, 'right'));
+    block.appendChild(rightCol);
+
+    var vl = mkEl('div', 'side-lbl vis-lbl');
+    vl.textContent = 'visible';
+    block.appendChild(vl);
+
+    hood.appendChild(block);
+  }
+
+  updateStats();
+
+  // Draw connectors after DOM has laid out
+  requestAnimationFrame(function() {
+    requestAnimationFrame(drawConnectors);
+  });
+}
+
+function mkEl(tag, cls) {
+  var d = document.createElement(tag);
+  if (cls) d.className = cls;
+  return d;
+}
+
+function countAll(type) {
+  var c = 0;
+  for (var s = 0; s < SEGS; s++)
+    for (var i = 0; i < N; i++) {
+      if (type === 'visible' && segs[s].right[i]) c++;
+      if (type === 'hidden' && segs[s].left[i]) c++;
+    }
+  return c;
+}
+
+function updateStats() {
+  var vc = countAll('visible');
+  var hc = countAll('hidden');
+  document.getElementById('visCount').textContent = vc;
+  document.getElementById('hidCount').textContent = hc;
+  document.getElementById('totalAdopt').textContent = vc + hc;
+  document.getElementById('totalHouses').textContent = TOTAL;
+  document.getElementById('roundNum').textContent = round;
+}
+
+function makeHouse(st, idx, side) {
+  var hasSolar = side === 'left' ? segs[st].left[idx] : segs[st].right[idx];
+  var isVisible = side === 'right' && hasSolar;
+  var isHidden = side === 'left' && hasSolar;
+
+  var house = mkEl('div', 'house' + (hasSolar ? ' adopted' : '') + (isVisible ? ' has-visible' : ''));
+  house.onclick = function() { toggleHouse(st, side, idx); };
+
+  var sun = mkEl('div', 'sun-badge');
+  sun.textContent = '\u2600\uFE0F';
+  house.appendChild(sun);
+
+  var roof = mkEl('div', 'roof');
+  var southSlope = mkEl('div', 'roof-south');
+  var northSlope = mkEl('div', 'roof-north');
+  if (isVisible) southSlope.classList.add('solar-visible');
+  if (isHidden) southSlope.classList.add('solar-hidden');
+  roof.appendChild(southSlope);
+  roof.appendChild(northSlope);
+  house.appendChild(roof);
+
+  var walls = mkEl('div', 'walls');
+  var wins = mkEl('div', 'windows');
+  wins.appendChild(mkEl('div', 'win'));
+  wins.appendChild(mkEl('div', 'win'));
+  walls.appendChild(wins);
+  walls.appendChild(mkEl('div', 'door'));
+  house.appendChild(walls);
+
+  return house;
+}
+
+function toggleHouse(st, side, idx) {
+  if (side === 'left') segs[st].left[idx] = !segs[st].left[idx];
+  else segs[st].right[idx] = !segs[st].right[idx];
+  render();
+}
+
+function seedVisible() {
+  var empties = [];
+  for (var s = 0; s < SEGS; s++)
+    for (var i = 0; i < N; i++)
+      if (!segs[s].right[i]) empties.push({s:s, i:i});
+  if (empties.length) {
+    var p = empties[Math.floor(Math.random() * empties.length)];
+    segs[p.s].right[p.i] = true; render();
+  }
+}
+
+function seedHidden() {
+  var empties = [];
+  for (var s = 0; s < SEGS; s++)
+    for (var i = 0; i < N; i++)
+      if (!segs[s].left[i]) empties.push({s:s, i:i});
+  if (empties.length) {
+    var p = empties[Math.floor(Math.random() * empties.length)];
+    segs[p.s].left[p.i] = true; render();
+  }
+}
+
+function simRound() {
+  round++;
+  var snap = [];
+  for (var s = 0; s < SEGS; s++) {
+    snap.push({ left: segs[s].left.slice(), right: segs[s].right.slice() });
+  }
+  var newAdoptions = 0;
+  for (var s = 0; s < SEGS; s++) {
+    for (var i = 0; i < N; i++) {
+      if (!segs[s].left[i] && Math.random() < adoptionProb(s, 'left', i)) {
+        snap[s].left[i] = true; newAdoptions++;
+      }
+      if (!segs[s].right[i] && Math.random() < adoptionProb(s, 'right', i)) {
+        snap[s].right[i] = true; newAdoptions++;
+      }
+    }
+  }
+  for (var s = 0; s < SEGS; s++) {
+    segs[s].left = snap[s].left;
+    segs[s].right = snap[s].right;
+  }
+  render();
+  updateInsight(newAdoptions);
+}
+
+function autoRun() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; return; }
+  var count = 0;
+  autoTimer = setInterval(function() {
+    simRound(); count++;
+    var total = countAll('visible') + countAll('hidden');
+    if (count >= 5 || total >= TOTAL) { clearInterval(autoTimer); autoTimer = null; }
+  }, 600);
+}
+
+function updateInsight(newAdoptions) {
+  var el = document.getElementById('insight');
+  var vc = countAll('visible');
+  var hc = countAll('hidden');
+  var total = vc + hc;
+  if (total <= 1) {
+    el.innerHTML = 'Seed an install and hit <strong>Simulate Wave</strong>.';
+  } else if (vc > hc + 2 && round > 2) {
+    el.innerHTML = '<strong>Wave ' + round + ':</strong> +' + newAdoptions + '. Visible-side (' + vc + ') outpacing hidden (' + hc + '). Same panels, same economics \u2014 only <em>road visibility</em> differs.';
+  } else if (total >= TOTAL) {
+    el.innerHTML = '<strong>Full adoption!</strong> Compare visible vs. hidden sides across all segments.';
+  } else {
+    el.innerHTML = '<strong>Wave ' + round + ':</strong> +' + newAdoptions + '. Adopted: ' + total + '/' + TOTAL + '.';
+  }
+}
+
+function resetAll() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  for (var s = 0; s < SEGS; s++) {
+    segs[s] = { left: new Array(N).fill(false), right: new Array(N).fill(false) };
+  }
+  round = 0; render();
+  document.getElementById('insight').innerHTML = 'Seed an install on either side, then <strong>Simulate Wave</strong>.';
+}
+
+// Redraw connectors on resize
+window.addEventListener('resize', function() {
+  requestAnimationFrame(drawConnectors);
+});
+
+render();
+</script>
+</body>
+</html>
