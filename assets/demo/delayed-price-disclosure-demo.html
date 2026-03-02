@@ -133,6 +133,23 @@
   .gauge-tag .tag-label { display: block; font-size: 10px; font-weight: 600; opacity: 0.7; }
   .gauge-tag .tag-value { display: block; font-size: 14px; font-weight: 800; }
 
+  /* Gap highlight bar on gauge */
+  .gauge-gap {
+    position: absolute; top: -6px; height: 34px; border-radius: 6px;
+    z-index: 1; display: none; transition: left 0.4s ease, width 0.4s ease, opacity 0.4s;
+    border: 2.5px solid transparent;
+  }
+  .gauge-gap.pos { background: rgba(5,150,105,0.15); border-color: rgba(5,150,105,0.5); }
+  .gauge-gap.neg { background: rgba(220,38,38,0.15); border-color: rgba(220,38,38,0.5); }
+  .gauge-gap.dimmed { opacity: 0.3; }
+  .gauge-gap-label {
+    position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+    font-size: 12px; font-weight: 800; white-space: nowrap;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .gauge-gap-label.pos { color: #059669; background: #dcfce7; }
+  .gauge-gap-label.neg { color: #dc2626; background: #fef2f2; }
+
   /* Steps timeline */
   .steps { display: flex; flex-direction: column; gap: 5px; }
   .step {
@@ -178,6 +195,7 @@
   .finding-card h4 { font-size: 14px; margin-bottom: 6px; }
   .finding-card p { font-size: 13px; line-height: 1.6; color: #475569; }
   .finding-card .effect { font-size: 20px; font-weight: 800; margin: 6px 0; }
+
 </style>
 </head>
 <body>
@@ -227,6 +245,9 @@
               <span>$400</span>
             </div>
             <div class="gauge-track" id="gaugeTrack">
+              <!-- Gap highlight bars -->
+              <div class="gauge-gap" id="gapDelayed"><div class="gauge-gap-label" id="gapDelLabel"></div></div>
+              <div class="gauge-gap" id="gapImmediate"><div class="gauge-gap-label" id="gapImmLabel"></div></div>
               <!-- Connector lines -->
               <div class="gauge-connector" id="conn1" style="background:#d1d5db;"></div>
               <div class="gauge-connector" id="conn2" style="background:#1e293b;"></div>
@@ -285,7 +306,11 @@
           </div>
           <div class="step" id="step4">
             <div class="step-num">5</div>
-            <div><strong>Disconfirmation.</strong> Positive → "great deal!" Negative → "too much."</div>
+            <div><strong>Delayed disconfirmation.</strong> How far is the actual price from your delay-shifted reference?</div>
+          </div>
+          <div class="step" id="step5">
+            <div class="step-num">6</div>
+            <div><strong>What if price shown immediately?</strong> Without the delay, the gap would be smaller.</div>
           </div>
         </div>
       </div>
@@ -435,6 +460,12 @@
         </div>
       </div>
 
+      <div class="finding-card" style="background:#f8fafc;">
+        <h4 style="color:#334155;">Connection to Expectancy Disconfirmation</h4>
+        <p>Recall the general satisfaction model: <strong style="font-size:15px;">CS = CP − CE</strong> (satisfaction = perceived quality − expected quality). Delayed price disclosure works by manipulating <strong>CE</strong> — the consumer's expectation. The three-stage reference shift (a→b→c) is the mechanism by which the delay moves CE up or down, which then determines whether the price reveal produces positive or negative disconfirmation.</p>
+        <p style="margin-top:8px;">This effect is strongest for <strong>ambiguous product experiences</strong> — products where quality is hard to evaluate before purchase (headphones, wine, skincare). Ambiguity gives expectations more power over perceived quality, making the delay-driven expectation shift especially potent.</p>
+      </div>
+
       <div class="finding-card" style="background:#faf5ff;">
         <h4 style="color:#6b21a8;">Managerial Takeaway</h4>
         <p>"Should we show the price upfront?" is the wrong question. The right question is: <strong>"In which direction will the delay push expectations — and will the reveal be a pleasant surprise or a letdown?"</strong></p>
@@ -501,7 +532,7 @@ function resetJourney() {
   document.getElementById('productDesc').textContent = s.productDesc;
   document.getElementById('priceTag').innerHTML = '<span class="price-hidden">Price not yet shown</span>';
 
-  // Hide all dots, tags, and connectors
+  // Hide all dots, tags, connectors, and gap bars
   ['dotBase','dotCtx','dotDrift','dotActual'].forEach(function(id) {
     document.getElementById(id).style.display = 'none';
   });
@@ -514,8 +545,12 @@ function resetJourney() {
   ['conn1','conn2'].forEach(function(id) {
     document.getElementById(id).style.display = 'none';
   });
+  ['gapDelayed','gapImmediate'].forEach(function(id) {
+    document.getElementById(id).style.display = 'none';
+    document.getElementById(id).className = 'gauge-gap';
+  });
 
-  for (var i = 0; i <= 4; i++) {
+  for (var i = 0; i <= 5; i++) {
     document.getElementById('step' + i).className = 'step' + (i === 0 ? ' active' : '');
   }
 
@@ -534,11 +569,24 @@ function positionConnector(id, leftPct, rightPct) {
   c.style.display = 'block';
 }
 
+function positionGap(id, leftPct, rightPct, label, type) {
+  var g = document.getElementById(id);
+  var lo = Math.min(leftPct, rightPct);
+  var hi = Math.max(leftPct, rightPct);
+  g.style.left = lo + '%';
+  g.style.width = (hi - lo) + '%';
+  g.className = 'gauge-gap ' + type;
+  g.style.display = 'block';
+  var lbl = g.querySelector('.gauge-gap-label');
+  lbl.textContent = label;
+  lbl.className = 'gauge-gap-label ' + type;
+}
+
 function advanceJourney() {
   journeyStep++;
   var s = STORES[currentStore];
 
-  for (var i = 0; i <= 4; i++) {
+  for (var i = 0; i <= 5; i++) {
     var el = document.getElementById('step' + i);
     if (i < journeyStep) el.className = 'step done';
     else if (i === journeyStep) el.className = 'step active';
@@ -599,27 +647,58 @@ function advanceJourney() {
     else cls += ' negative';
     tag.innerHTML = '<span class="' + cls + '">$' + s.actualPrice + '</span>';
 
-    document.getElementById('nextBtn').textContent = 'See Result \u2192';
+    document.getElementById('nextBtn').textContent = 'See Delayed Gap \u2192';
   }
 
   if (journeyStep === 5) {
+    // Show delayed disconfirmation gap on gauge: drift ↔ actual
+    var delGap = Math.abs(s.driftRef - s.actualPrice);
+    var gapType = s.disconfirmation === 'positive' ? 'pos' : 'neg';
+    var gapLabel = s.disconfirmation === 'positive'
+      ? '$' + delGap + ' under expectations'
+      : '$' + delGap + ' over expectations';
+    positionGap('gapDelayed', pct(s.driftRef), pct(s.actualPrice), gapLabel, gapType);
+
     var insight = document.getElementById('journeyInsight');
     insight.style.display = 'block';
-
     if (s.disconfirmation === 'positive') {
-      var gap = s.driftRef - s.actualPrice;
       insight.className = 'insight-box insight-green';
-      insight.innerHTML = '<strong>\u2705 Positive disconfirmation!</strong> Your reference drifted to ~$' + s.driftRef + ' but the price is only $' + s.actualPrice + ' \u2014 <strong>$' + gap + ' less</strong> than expected. The delay amplified your premium expectations, making the actual price feel like a steal. <em>Premium retailers benefit from delaying prices.</em>';
+      insight.innerHTML = '<strong>⏳ With delay:</strong> Your reference drifted to ~$' + s.driftRef + '. The actual price of $' + s.actualPrice + ' is <strong>$' + delGap + ' less</strong> than expected — a strong positive surprise!';
     } else {
-      var gap = s.actualPrice - s.driftRef;
       insight.className = 'insight-box insight-red';
-      insight.innerHTML = '<strong>\u274C Negative disconfirmation!</strong> Your reference drifted down to ~$' + s.driftRef + ' but the price is $' + s.actualPrice + ' \u2014 <strong>$' + gap + ' more</strong> than expected. The delay amplified your discount expectations, making the actual price feel outrageous. <em>Discount retailers should show prices upfront.</em>';
+      insight.innerHTML = '<strong>⏳ With delay:</strong> Your reference drifted down to ~$' + s.driftRef + '. The actual price of $' + s.actualPrice + ' is <strong>$' + delGap + ' more</strong> than expected — severe sticker shock!';
+    }
+
+    document.getElementById('nextBtn').textContent = 'What If Price Shown Immediately? \u2192';
+  }
+
+  if (journeyStep === 6) {
+    // Show immediate comparison: context ↔ actual (smaller gap)
+    // Dim the delayed gap
+    document.getElementById('gapDelayed').classList.add('dimmed');
+
+    var immGap = Math.abs(s.contextRef - s.actualPrice);
+    var delGap = Math.abs(s.driftRef - s.actualPrice);
+    var gapType = s.disconfirmation === 'positive' ? 'pos' : 'neg';
+    var immLabel = s.disconfirmation === 'positive'
+      ? '$' + immGap + ' under (no delay)'
+      : '$' + immGap + ' over (no delay)';
+    positionGap('gapImmediate', pct(s.contextRef), pct(s.actualPrice), immLabel, gapType);
+
+    var extra = delGap - immGap;
+    var insight = document.getElementById('journeyInsight');
+    if (s.disconfirmation === 'positive') {
+      insight.className = 'insight-box insight-green';
+      insight.innerHTML = '<strong>⚡ Without delay:</strong> Reference would have stayed at $' + s.contextRef + ' — only <strong>$' + immGap + ' under</strong>. The delay added <strong>$' + extra + '</strong> of extra positive disconfirmation. <em>Premium retailers benefit from delaying prices.</em>';
+    } else {
+      insight.className = 'insight-box insight-red';
+      insight.innerHTML = '<strong>⚡ Without delay:</strong> Reference would have stayed at $' + s.contextRef + ' — only <strong>$' + immGap + ' over</strong>. The delay added <strong>$' + extra + '</strong> of extra negative disconfirmation. <em>Discount retailers should show prices upfront.</em>';
     }
 
     document.getElementById('nextBtn').textContent = 'Try the Other Store \u21BB';
   }
 
-  if (journeyStep >= 6) {
+  if (journeyStep >= 7) {
     currentStore = (currentStore === 'premium') ? 'value' : 'premium';
     document.querySelectorAll('.store-card').forEach(function(c) { c.classList.remove('selected'); });
     document.getElementById('store-' + currentStore).classList.add('selected');
